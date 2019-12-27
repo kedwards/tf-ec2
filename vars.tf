@@ -53,6 +53,12 @@ variable "associate_public_ip_address" {
   type        = bool
 }
 
+variable "create_instance" {
+  default     = true
+  description = "Create an ec2 instance with no ASG, or ALB."
+  type        = bool
+}
+
 variable "create_alb" {
   default     = false
   description = "Whether to create an ALB."

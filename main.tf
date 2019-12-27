@@ -1,3 +1,27 @@
+resource "aws_instance" "this" {
+  count = var.create_instance ? var.instance_count : 0
+
+  ami                    = var.ami
+  instance_type          = var.instance_type
+  key_name               = var.provisioning_key
+  subnet_id              = var.subnet
+  vpc_security_group_ids = var.security_groups
+  user_data              = var.user_data
+
+  root_block_device {
+    volume_type = var.volume_type
+    volume_size = var.volume_size
+  }
+
+  tags = merge(
+    {
+      "Name" = format("%s-instance", var.name)
+    },
+    var.tags,
+    var.instance_tags
+  )
+}
+
 resource "aws_key_pair" "this" {
   count = var.create_key_pair ? 1 : 0
 
@@ -6,6 +30,7 @@ resource "aws_key_pair" "this" {
 }
 
 resource "aws_launch_configuration" "this" {
+  count = var.create_instance ? 0 : 1
   # Launch Configurations cannot be updated after creation with the AWS API.
   # In order to update a Launch Configuration, Terraform will destroy the
   # existing resource and create a replacement.
@@ -31,10 +56,12 @@ resource "aws_launch_configuration" "this" {
 }
 
 resource "aws_autoscaling_group" "this" {
+  count = var.create_instance ? 0 : 1
+
   # Force a redeployment when launch configuration changes.
   # This will reset the desired capacity if it was changed due to
   # autoscaling events.
-  name = "${aws_launch_configuration.this.name}-asg"
+  name = "${aws_launch_configuration.this[0].name}-asg"
 
   desired_capacity          = var.desired_capacity
   health_check_grace_period = 300
@@ -50,17 +77,21 @@ resource "aws_autoscaling_group" "this" {
   }
 
   tags = var.tags
+
+  provisioner "local-exec" {
+    command = "./get_ips.sh"
+  }
 }
 
 resource "aws_autoscaling_attachment" "this" {
-  count = var.create_alb ? 1 : 0
+  count = (false == var.create_instance && var.create_alb) ? 1 : 0
 
-  autoscaling_group_name = aws_autoscaling_group.this.id
+  autoscaling_group_name = aws_autoscaling_group.this[0].id
   alb_target_group_arn   = aws_alb_target_group.this[0].arn
 }
 
 resource "aws_lb" "this" {
-  count = var.create_alb ? 1 : 0
+  count = (false == var.create_instance && var.create_alb) ? 1 : 0
 
   name               = "${var.name}-lb"
   internal           = var.internal_lb ? true : false
@@ -78,7 +109,7 @@ resource "aws_lb" "this" {
 }
 
 resource "aws_alb_target_group" "this" {
-  count = var.create_alb ? 1 : 0
+  count = (false == var.create_instance && var.create_alb) ? 1 : 0
 
   name     = "${var.name}-lb-tg"
   port     = var.target_group_port
@@ -99,7 +130,7 @@ resource "aws_alb_target_group" "this" {
 }
 
 resource "aws_alb_listener" "this" {
-  count = var.create_alb ? 1 : 0
+  count = (false == var.create_instance && var.create_alb) ? 1 : 0
 
   load_balancer_arn = aws_lb.this[0].arn
   port              = 80
@@ -112,7 +143,7 @@ resource "aws_alb_listener" "this" {
 }
 
 resource "aws_alb_listener_rule" "this" {
-  count = var.create_alb ? 1 : 0
+  count = (false == var.create_instance && var.create_alb) ? 1 : 0
 
   listener_arn = aws_alb_listener.this[0].arn
   priority     = 100

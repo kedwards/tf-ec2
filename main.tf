@@ -4,7 +4,7 @@ resource "aws_instance" "this" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.provisioning_key
-  subnet_id              = var.subnet
+  subnet_id              = var.subnets[0]
   vpc_security_group_ids = var.security_groups
   user_data              = var.user_data
 
@@ -66,7 +66,7 @@ resource "aws_autoscaling_group" "this" {
   desired_capacity          = var.desired_capacity
   health_check_grace_period = 300
   health_check_type         = var.health_check_type
-  launch_configuration      = aws_launch_configuration.this.id
+  launch_configuration      = aws_launch_configuration.this[0].id
   max_size                  = var.max_size
   min_size                  = var.min_size
   vpc_zone_identifier       = var.vpc_zone_identifier

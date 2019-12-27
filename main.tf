@@ -4,7 +4,7 @@ resource "aws_instance" "this" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.provisioning_key
-  subnet_id              = var.subnets[0]
+  subnet_id              = var.vpc_zone_identifier[0]
   vpc_security_group_ids = var.security_groups
   user_data              = var.user_data
 
